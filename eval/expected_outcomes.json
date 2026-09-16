@@ -92,7 +92,7 @@
   },
   "CUST-001": {
     "expected_decision": "PARTIALLY_ADMISSIBLE",
-    "rationale": "prior_insurer_continuous_years=4 with database_and_claim_history_received=true reduces the 48-month PED wait to 0, but the reduction 'shall only apply to the extent of the Sum Insured under the previous health insurance Policy' (INR 100,000). Total claimed expenses (~148,000 excluding pre/post) exceed that 100,000 ceiling, so the portion up to 100,000 is PED-wait-waived and admissible, while the excess is still subject to the full 48-month wait measured from this policy's own 6-month-old inception and is not admissible.",
+    "rationale": "prior_insurer_continuous_years=4 with database_and_claim_history_received=true reduces the 48-month PED wait to 0, but the reduction 'shall only apply to the extent of the Sum Insured under the previous health insurance Policy' (INR 100,000). Total claimed expenses (room 15,000 + doctor_fees 40,000 + medicines/diagnostics 90,000 + pre-hosp 5,000 + post-hosp 8,000 = 158,000) exceed that 100,000 ceiling, so the portion up to 100,000 is PED-wait-waived and admissible, while the remaining 58,000 is still subject to the full 48-month wait measured from this policy's own 6-month-old inception and is not admissible.",
     "policy_reference": [
       {"page": 8, "section": "Exclusions", "chunk_id": "chunk-0039", "clause": "PED waiting period reduced by continuous prior years of coverage"},
       {"page": 8, "section": "Exclusions", "chunk_id": "chunk-0040", "clause": "Reduction applies only up to the previous policy's Sum Insured"}
