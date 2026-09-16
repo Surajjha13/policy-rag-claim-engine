@@ -1,0 +1,30 @@
+{
+  "PUB-002": {
+    "question": "Does the claim fall within the policy's initial waiting period?",
+    "gold_chunk_ids": ["chunk-0046"]
+  },
+  "PUB-003": {
+    "question": "What is the waiting period for pre-existing diseases?",
+    "gold_chunk_ids": ["chunk-0020", "chunk-0039"]
+  },
+  "PUB-005": {
+    "question": "Can a less-than-24-hour eye surgery admission qualify as covered day-care treatment?",
+    "gold_chunk_ids": ["chunk-0037"]
+  },
+  "PUB-008": {
+    "question": "Is cosmetic surgery excluded under the policy?",
+    "gold_chunk_ids": ["chunk-0050"]
+  },
+  "PUB-010": {
+    "question": "Does continuous coverage under a prior Indian insurer waive the first-year exclusion?",
+    "gold_chunk_ids": ["chunk-0047", "chunk-0048"]
+  },
+  "CUST-005": {
+    "question": "Does this domiciliary claim satisfy the policy's Domiciliary Treatment conditions?",
+    "gold_chunk_ids": ["chunk-0009"]
+  },
+  "CUST-006": {
+    "question": "What sub-limit applies to ICU room expenses?",
+    "gold_chunk_ids": ["chunk-0034"]
+  }
+}

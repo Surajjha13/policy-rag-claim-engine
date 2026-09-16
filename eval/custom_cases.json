@@ -1,0 +1,185 @@
+[
+  {
+    "case_id": "CUST-001",
+    "policy_id": "USGIC-CSC-2017-2018",
+    "policy_start_date": "2026-03-01",
+    "claim_date": "2026-09-10",
+    "sum_insured_inr": 800000,
+    "continuous_coverage_months": 6,
+    "prior_insurer_continuous_years": 4,
+    "patient": { "age": 50 },
+    "hospital": { "name": "Metro Diabetes Centre", "network_provider": true },
+    "treatment": {
+      "type": "inpatient",
+      "admission_hours": 96,
+      "diagnosis": "Pre-existing diabetic complication requiring hospitalization",
+      "procedure": "Complication management",
+      "pre_existing": true,
+      "experimental": false
+    },
+    "expenses_inr": {
+      "room": 15000,
+      "doctor_fees": 40000,
+      "medicines_diagnostics": 90000,
+      "pre_hospitalization": 5000,
+      "post_hospitalization": 8000,
+      "ambulance": 0
+    },
+    "documents": ["claim_form", "discharge_summary", "itemized_bill", "prior_medical_records", "prior_policy_records"],
+    "task": "Assess the claim considering the ported continuous coverage and determine whether the pre-existing-disease waiting-period credit applies to the full claimed amount or only up to the previous insurer's sum insured.",
+    "prior_policy": {
+      "insurer_type": "Indian individual health insurer",
+      "continuous_years": 4,
+      "database_and_claim_history_received": true,
+      "previous_sum_insured_inr": 100000
+    }
+  },
+  {
+    "case_id": "CUST-002",
+    "policy_id": "USGIC-CSC-2017-2018",
+    "policy_start_date": "2024-06-01",
+    "claim_date": "2026-08-01",
+    "sum_insured_inr": 500000,
+    "continuous_coverage_months": 26,
+    "prior_insurer_continuous_years": 0,
+    "patient": { "age": 33, "occupation": "Delivery rider", "blood_group": "O+" },
+    "hospital": { "name": "GreenLeaf Hospital", "network_provider": true, "parking_available": true },
+    "treatment": {
+      "type": "inpatient",
+      "admission_hours": 72,
+      "diagnosis": "Acute appendicitis",
+      "procedure": "Appendectomy",
+      "pre_existing": false,
+      "experimental": false
+    },
+    "expenses_inr": {
+      "room": 12000,
+      "doctor_fees": 20000,
+      "medicines_diagnostics": 60000,
+      "pre_hospitalization": 0,
+      "post_hospitalization": 0,
+      "ambulance": 0
+    },
+    "documents": ["claim_form", "discharge_summary", "itemized_bill"],
+    "task": "Determine whether the hospitalization is admissible; note the patient's occupation and the hospital's parking availability are demographic/facility notes only, not policy-relevant attributes."
+  },
+  {
+    "case_id": "CUST-003",
+    "policy_id": "USGIC-CSC-2017-2018",
+    "policy_start_date": "2024-01-01",
+    "claim_date": "2026-07-01",
+    "sum_insured_inr": 500000,
+    "continuous_coverage_months": 30,
+    "prior_insurer_continuous_years": 0,
+    "patient": { "age": 45 },
+    "hospital": { "name": "General Hospital", "network_provider": true },
+    "treatment": {
+      "type": "inpatient",
+      "admission_hours": 96,
+      "diagnosis": "Persistent idiopathic fatigue, cause undetermined after initial workup",
+      "procedure": "Observation and monitoring",
+      "pre_existing": false,
+      "experimental": false
+    },
+    "expenses_inr": {
+      "room": 10000,
+      "doctor_fees": 15000,
+      "medicines_diagnostics": 20000,
+      "pre_hospitalization": 0,
+      "post_hospitalization": 0,
+      "ambulance": 0
+    },
+    "documents": ["claim_form", "discharge_summary", "itemized_bill"],
+    "task": "Determine whether hospitalization for an undiagnosed condition, with no confirmed illness or pathological finding, is admissible under the policy."
+  },
+  {
+    "case_id": "CUST-004",
+    "policy_id": "USGIC-CSC-2017-2018",
+    "policy_start_date": "2024-01-01",
+    "claim_date": "2026-05-01",
+    "sum_insured_inr": 500000,
+    "continuous_coverage_months": 28,
+    "prior_insurer_continuous_years": 0,
+    "patient": { "age": 41 },
+    "hospital": { "name": "Rural Care Clinic", "network_provider": false, "bed_count": 6, "town_population": 400000 },
+    "treatment": {
+      "type": "inpatient",
+      "admission_hours": 96,
+      "diagnosis": "Acute gastroenteritis with dehydration",
+      "procedure": "IV fluid management",
+      "pre_existing": false,
+      "experimental": false
+    },
+    "expenses_inr": {
+      "room": 5000,
+      "doctor_fees": 8000,
+      "medicines_diagnostics": 12000,
+      "pre_hospitalization": 0,
+      "post_hospitalization": 0,
+      "ambulance": 0
+    },
+    "documents": ["claim_form", "discharge_summary", "itemized_bill", "facility_registration_details"],
+    "task": "Determine whether the treating facility meets the policy's definition of a Hospital given its documented bed count and town population, and decide admissibility accordingly."
+  },
+  {
+    "case_id": "CUST-005",
+    "policy_id": "USGIC-CSC-2017-2018",
+    "policy_start_date": "2024-01-01",
+    "claim_date": "2026-06-15",
+    "sum_insured_inr": 500000,
+    "continuous_coverage_months": 29,
+    "prior_insurer_continuous_years": 0,
+    "patient": { "age": 60 },
+    "hospital": { "name": "HomeCare Plus", "network_provider": false },
+    "treatment": {
+      "type": "domiciliary",
+      "admission_hours": 0,
+      "diagnosis": "Mild respiratory infection",
+      "procedure": "Domiciliary treatment",
+      "pre_existing": false,
+      "hospital_room_unavailable": false,
+      "patient_cannot_be_moved": false,
+      "experimental": false
+    },
+    "expenses_inr": {
+      "room": 0,
+      "doctor_fees": 8000,
+      "medicines_diagnostics": 15000,
+      "pre_hospitalization": 0,
+      "post_hospitalization": 0,
+      "ambulance": 0
+    },
+    "documents": ["claim_form", "doctor_certificate", "medical_records", "itemized_bill"],
+    "task": "Determine whether the domiciliary treatment satisfies the policy's conditions for Domiciliary Treatment given that neither qualifying circumstance (inability to move, or unavailability of a hospital room) is documented."
+  },
+  {
+    "case_id": "CUST-006",
+    "policy_id": "USGIC-CSC-2017-2018",
+    "policy_start_date": "2024-01-01",
+    "claim_date": "2026-07-20",
+    "sum_insured_inr": 500000,
+    "continuous_coverage_months": 30,
+    "prior_insurer_continuous_years": 0,
+    "patient": { "age": 55 },
+    "hospital": { "name": "CardioCare Institute", "network_provider": true },
+    "treatment": {
+      "type": "inpatient",
+      "admission_hours": 96,
+      "diagnosis": "Acute myocardial infarction, ICU management",
+      "procedure": "ICU monitoring and medical management",
+      "pre_existing": false,
+      "experimental": false,
+      "icu_days": 4
+    },
+    "expenses_inr": {
+      "room": 100000,
+      "doctor_fees": 60000,
+      "medicines_diagnostics": 150000,
+      "pre_hospitalization": 3000,
+      "post_hospitalization": 5000,
+      "ambulance": 800
+    },
+    "documents": ["claim_form", "discharge_summary", "itemized_bill", "icu_records"],
+    "task": "Determine admissibility and apply the correct sub-limit for Intensive Care Unit room expenses rather than the normal room-rent limit."
+  }
+]
