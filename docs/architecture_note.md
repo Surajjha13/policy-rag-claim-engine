@@ -204,3 +204,26 @@ lowered the floor to 0.15 and added crude plural stemming
 *obviously* unrelated chunks cheaply - correctness judgment belongs to the
 entailment step, not the token-overlap pre-filter. Locked in by
 `test_keyword_overlap_survives_natural_paraphrase_and_plural_mismatch`.
+
+**7. The first full 18-case eval run against the live Groq free tier
+crashed on a 429, and after adding a retry the accuracy collapsed to 33%
+with 16/18 cases abstaining.** Root cause, found by actually running the
+full batch rather than single-case smoke tests: Groq's free tier caps
+`openai/gpt-oss-120b` at 8000 tokens/minute, and this pipeline's per-case
+LLM calls (case analysis, coverage judgment over several chunks, decision,
+plus one entailment check per citation) comfortably exceed that within a
+handful of cases. The first fix (catch `RateLimitError` and retry up to 3
+times with exponential backoff: 2s/4s/8s) stopped the batch from crashing,
+but Groq's actual reset window frequently exceeded 8 seconds, so most
+retries were exhausted before the limit cleared - agents fell back to their
+conservative `UNCLEAR`/unparseable-output paths, and that cascaded into
+`NEEDS_REVIEW` for cases that should have been confidently decidable.
+Second fix: `_wait_seconds` now parses the provider's own recommended delay
+from the error text ("Please try again in 5.07s") instead of guessing with
+exponential backoff, and `MAX_RETRIES` was raised from 3 to 5; blind
+backoff remains the fallback only when a retryable error carries no such
+hint (e.g. a dropped connection). `eval/run_eval.py` also gained a
+per-case try/except (mirroring `src/api/main.py`'s existing boundary) so
+one case's unrecoverable failure can never take down the rest of the batch
+again, and a small inter-case delay to stay under budget in the first
+place. See `eval/results.json` for the resulting run.

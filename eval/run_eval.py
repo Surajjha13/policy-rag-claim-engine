@@ -8,12 +8,22 @@ policy index already built via `python -m src.ingestion.build_index`.)
 
 import json
 import sys
+import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from src.orchestrator.pipeline import run_pipeline  # noqa: E402
 from src.schemas.case import ClaimCase  # noqa: E402
+from src.schemas.decision import DecisionResponse, ValidationResult  # noqa: E402
+
+# Free-tier LLM providers (e.g. Groq) enforce a strict tokens-per-minute
+# budget; running 18 cases back-to-back with no pacing hit that limit on
+# the very first real eval run (see docs/architecture_note.md). A short
+# pause between cases keeps this script usable on a free tier without
+# needing every individual LLM call's retry/backoff (src/llm/client.py) to
+# absorb the whole batch's load.
+INTER_CASE_DELAY_SECONDS = 3
 
 PUBLIC_CASES_PATH = Path(__file__).resolve().parents[1] / "data" / "candidate_cases" / "public_test_cases.json"
 CUSTOM_CASES_PATH = Path(__file__).parent / "custom_cases.json"
@@ -54,9 +64,24 @@ def main():
     results = []
     correct = 0
     needs_review_count = 0
-    for raw in cases:
+    for i, raw in enumerate(cases):
         case = ClaimCase.model_validate(raw)
-        response = run_pipeline(case)
+        print(f"[{i + 1}/{len(cases)}] running {case.case_id}...", flush=True)
+        try:
+            response = run_pipeline(case)
+        except Exception as e:
+            print(f"  -> pipeline error on {case.case_id}: {type(e).__name__}: {e}", flush=True)
+            response = DecisionResponse(
+                case_id=case.case_id,
+                decision="NEEDS_REVIEW",
+                confidence=0.0,
+                key_findings=[],
+                applicable_limits=[],
+                missing_evidence=[f"Eval run pipeline error: {type(e).__name__}"],
+                citations=[],
+                validation=ValidationResult(status="FAIL", unsupported_claims=[]),
+                trace=[],
+            )
         exp = expected.get(case.case_id, {})
         is_correct = exp.get("expected_decision") == response.decision
         correct += int(is_correct)
@@ -73,6 +98,8 @@ def main():
                 "validation_status": response.validation.status,
             }
         )
+        if i < len(cases) - 1:
+            time.sleep(INTER_CASE_DELAY_SECONDS)
 
     citation_rates = [r["citation_hit_rate"] for r in results]
     summary = {
