@@ -61,25 +61,36 @@ doesn't clearly settle it - this is the mechanism that produces the
 hard abstention signal. On an unparseable LLM response, it falls back to one
 `UNCLEAR` finding rather than guessing a status.
 
-## `decision_agent.py` - `run_decision(case_state, coverage, trace, feedback=None) -> DraftDecision`
+## `decision_agent.py` - `run_decision(case_state, coverage, evidence, trace, feedback=None) -> DraftDecision`
 
 The most important file for the "appropriate abstention" rubric criterion.
 Two-tier design:
 
 1. **`_forced_needs_review`** runs *before* any LLM call. If
-   `case_state.missing_fields` is non-empty, or any `CoverageFindings`
-   finding is `UNCLEAR` or below `CONFIDENCE_FLOOR = 0.55`, it returns a
-   `NEEDS_REVIEW` `DraftDecision` immediately, with `missing_evidence`
-   listing exactly which fields/dimensions triggered it. **The LLM never
-   sees a case in this state** - abstention here is a structural guarantee,
-   not a hope that the prompt worked.
-2. Only when every dimension is resolved does it call the LLM
-   (`DECISION_SYSTEM`) to combine findings into a final decision + citations.
-   The prompt explicitly forbids inventing a `chunk_id`/page/number not
-   present in the findings it was given - the Validation Agent is the
-   actual enforcement of that, but stating it in the prompt reduces how
-   often enforcement is needed.
-3. The `feedback` parameter is only populated on the pipeline's one retry
+   `case_state.missing_fields` is non-empty, or *every* `CoverageFindings`
+   finding is `UNCLEAR`/below `CONFIDENCE_FLOOR = 0.55` (nothing at all is
+   usable), it returns a `NEEDS_REVIEW` `DraftDecision` immediately, with
+   `missing_evidence` listing exactly which fields/dimensions triggered it.
+   **The LLM never sees a case in this state.** A *mix* of confident and
+   unclear findings deliberately does NOT force this path - an earlier
+   version treated any single unclear dimension as disqualifying and it
+   force-abstained a case that was actually decisively resolved by one
+   confident dimension while an unrelated exploratory dimension was merely
+   unclear (see `docs/architecture_note.md`, failure case 4).
+2. Otherwise it calls the LLM (`DECISION_SYSTEM`) to combine findings into a
+   final decision + citations, having been told to still abstain if a
+   dimension *necessary to this case's conclusion* is unresolved - a
+   judgment call the Python gate above can't make since it doesn't know
+   which dimensions are load-bearing for a given case.
+3. **`_resolve_citations`** - the LLM is only asked for `{claim, chunk_id}`
+   per citation, never `page`/`section`; those are looked up from the real
+   `EvidenceBundle` afterward. Asking the LLM to recall page numbers from
+   memory was tried first and both crashed (a missing field is a required
+   Pydantic field) and was a needless hallucination surface (see failure
+   case 5). An unresolvable `chunk_id` degrades to a sentinel `page=0`
+   citation instead of crashing, which the Validation Agent's existence
+   check then flags.
+4. The `feedback` parameter is only populated on the pipeline's one retry
    (see `orchestrator/pipeline.py`), letting a second attempt see exactly
    which claims the Validation Agent rejected the first time.
 
@@ -91,10 +102,14 @@ LLM call is never made for a citation that's already provably wrong:
 1. **Chunk existence** - does `citation.chunk_id` even appear in the
    evidence pool the pipeline actually retrieved? Catches an invented
    chunk_id for free.
-2. **Keyword overlap** (`_keyword_overlap_ok`) - do at least 30% of the
-   claim's distinctive tokens (>3 characters) appear in the cited chunk's
-   text? Catches a citation pointing at a real but irrelevant chunk without
-   spending an LLM call.
+2. **Keyword overlap** (`_keyword_overlap_ok`) - do at least 15% of the
+   claim's distinctive tokens (>3 characters, crudely plural-stemmed)
+   appear in the cited chunk's text? Deliberately a low bar - its only job
+   is rejecting an *obviously* unrelated chunk cheaply, not judging
+   correctness (that's step 3's job). A stricter 30% threshold was tried
+   first and rejected a well-grounded but naturally-paraphrased citation
+   before the entailment check ever ran (failure case 6 in
+   `docs/architecture_note.md`).
 3. **LLM entailment** - only for claims that pass 1 and 2: a dedicated,
    conservative fact-check prompt (`VALIDATION_SYSTEM`) asks "does this
    exact text support this exact claim," instructed to answer `false` when

@@ -21,8 +21,11 @@ of them) exclusive access to a tool the others don't call:
    the evidence Policy Evidence retrieved, marking a dimension `UNCLEAR`
    with low confidence when the evidence doesn't settle it.
 4. **Decision** - combines findings into a final decision, but only after a
-   deterministic Python gate: any missing field or `UNCLEAR`/low-confidence
-   finding forces `NEEDS_REVIEW` *without calling the LLM at all*.
+   deterministic Python gate: a missing field, or *every* dimension coming
+   back `UNCLEAR`/low-confidence (nothing at all usable), forces
+   `NEEDS_REVIEW` *without calling the LLM*. A mix of confident and unclear
+   findings is deliberately handed to the LLM rather than hard-blocked -
+   see failure case 4 below for why.
 5. **Validation** - independently re-checks every citation the Decision
    Agent produced against the actual retrieved chunk text (existence check
    -> keyword overlap -> LLM entailment), triggering one retry and then a
@@ -129,3 +132,65 @@ hand-adjudicated as `NEEDS_REVIEW` (not `NOT_ADMISSIBLE`) specifically to
 make this exact failure mode visible and measurable in
 `eval/run_eval.py`'s accuracy metric, rather than being papered over by a
 plausible-sounding but unsupported confident answer.
+
+**4. Over-broad abstention: any single UNCLEAR dimension force-blocked the
+decision, even an irrelevant one (found by running the real pipeline, not
+by static review).** Manually smoke-testing PUB-002 (a clean-cut
+initial-waiting-period case) against the live LLM showed the Case Analysis
+Agent's checklist included several exploratory dimensions beyond the one
+that actually matters - `documentation_sufficiency`, `hospital_definition`
+(network-provider status), `sub_limits` - none of which the stubbed
+evidence for this smoke test addressed, so the Coverage Agent correctly
+marked them `UNCLEAR`. The original `_forced_needs_review` treated *any*
+`UNCLEAR` finding as disqualifying, so the pipeline returned `NEEDS_REVIEW`
+even though the waiting-period dimension itself was resolved at 0.95
+confidence and should have been enough to decide `NOT_ADMISSIBLE` on its
+own. Fix: the Python gate now only force-abstains when a required field is
+missing or *every* finding is unclear (nothing at all usable); a mix of
+confident and unclear findings is handed to the LLM, whose prompt
+(`DECISION_SYSTEM`) was strengthened to explicitly weigh whether an unclear
+dimension is actually necessary to this case's conclusion. Re-running the
+same smoke test after the fix produced the correct `NOT_ADMISSIBLE`
+decision with a properly grounded citation. Locked in by
+`test_decision_agent_defers_to_llm_when_one_finding_is_confident_and_another_unclear`.
+
+**5. The Decision Agent asked the LLM to recall citation page/section
+numbers from memory, which crashed outright when the model omitted the
+field (also found by running the real pipeline).** The original prompt's
+citation schema asked for `{claim, source, page, section, chunk_id}` in one
+shot. Against the live LLM, this failed in two ways: once the model omitted
+`page` entirely (a hard `pydantic.ValidationError` crash before any
+fallback could catch it - not a graceful abstention, an unhandled
+exception), and separately, asking the model to recall page/section from
+memory at all is a needless hallucination surface for information the
+system already has ground truth for. Fix: the LLM now only supplies
+`{claim, chunk_id}`; `page`/`section`/`source` are resolved programmatically
+by looking up `chunk_id` in the actual `EvidenceBundle` the pipeline
+retrieved (`decision_agent.py::_resolve_citations`). An unresolvable
+`chunk_id` (invented or stale) now degrades to a citation with `page=0` and
+an obviously-sentinel section string instead of crashing, which the
+Validation Agent's existence check then correctly flags as unsupported.
+A related, smaller issue surfaced in the same test run: the first fix
+attempt caused the LLM to write terse dimension labels (e.g.
+`"waiting_period"`) into the citation's `claim` field instead of a real
+sentence - harmless for validation in that instance (the label's words
+happened to overlap the chunk) but a poor reviewer-facing citation. The
+prompt now explicitly requires `claim` to be a full natural-language
+sentence.
+
+**6. Fixing failure case 5's citation-claim prompt immediately triggered a
+new Validation Agent false-negative on the resulting natural-language
+paraphrase.** Once the LLM wrote a proper sentence ("The claim occurs
+within the 30-day initial waiting period, making it ineligible for
+coverage.") instead of a bare label, the keyword-overlap pre-filter
+(0.3 threshold, exact-token match) rejected it: the paraphrase's words
+("occurs," "initial," "ineligible," "coverage") mostly don't appear
+verbatim in the chunk ("a waiting period of 30 days will apply to all
+claims..."), and a singular/plural mismatch (claim vs. claims) meant even
+that word didn't count as a match. The citation was correctly grounded but
+never reached the LLM entailment check that could have confirmed it. Fix:
+lowered the floor to 0.15 and added crude plural stemming
+(`_normalize`), since this check's actual job is only to reject
+*obviously* unrelated chunks cheaply - correctness judgment belongs to the
+entailment step, not the token-overlap pre-filter. Locked in by
+`test_keyword_overlap_survives_natural_paraphrase_and_plural_mismatch`.
