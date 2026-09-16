@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+*.pyc
+.git/
+.pytest_cache/
+index_store/*
+!index_store/.gitkeep
+eval/results.json
+docs/
+.env
