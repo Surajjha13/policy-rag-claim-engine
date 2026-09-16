@@ -88,10 +88,11 @@ in `docs/architecture_note.md`.
 ## `build_index.py` - `build_index() -> list[Chunk]`
 
 Orchestrates: `extract_pages` -> `chunk_pages` -> embed every chunk with
-`sentence-transformers` -> upsert into a persistent Chroma collection
-(`policy_chunks`) -> build a `BM25Okapi` index over the same chunks -> pickle
-it alongside the raw chunk list (so `SparseIndex` never needs Chroma to
-answer a query). Also writes `index_store/chunks.json` - a plain, human-
+`sentence-transformers` -> build a FAISS `IndexFlatIP` over the embeddings
+plus an index-aligned chunk-metadata pickle (FAISS itself only stores
+vectors) -> build a `BM25Okapi` index over the same chunks -> pickle it
+alongside the raw chunk list (so `SparseIndex` never needs the FAISS index
+to answer a query). Also writes `index_store/chunks.json` - a plain, human-
 readable dump of every chunk, useful for manually spot-checking citations
 during development (this is how the gold `chunk_id`s in
 `eval/gold_evidence.json` and `eval/expected_outcomes.json` were found).

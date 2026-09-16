@@ -1,8 +1,9 @@
 """One-time (well, one-per-policy-change) offline index build.
 
 Run as `python -m src.ingestion.build_index`. Produces everything the
-request-time retriever (`src/retrieval/`) reads: a persisted Chroma
-collection for dense search, a pickled BM25 index for sparse search, and a
+request-time retriever (`src/retrieval/`) reads: a FAISS index for dense
+search (plus its index-aligned chunk-metadata list, since FAISS itself only
+stores vectors), a pickled BM25 index for sparse search, and a
 human-readable `chunks.json` dump (used during development to look up real
 chunk_ids for `eval/gold_evidence.json` and `eval/expected_outcomes.json`).
 """
@@ -11,14 +12,14 @@ import json
 import pickle
 from pathlib import Path
 
-import chromadb
+import faiss
+from rank_bm25 import BM25Okapi
 from sentence_transformers import SentenceTransformer
 
 from src.config import settings
 from src.ingestion.chunker import Chunk, chunk_pages
 from src.ingestion.pdf_parser import extract_pages
 from src.retrieval.sparse import tokenize
-from rank_bm25 import BM25Okapi
 
 
 def build_index() -> list[Chunk]:
@@ -32,23 +33,20 @@ def build_index() -> list[Chunk]:
     )
 
     embedder = SentenceTransformer(settings.embedding_model)
-    embeddings = embedder.encode([c.text for c in chunks], show_progress_bar=False).tolist()
+    embeddings = embedder.encode(
+        [c.text for c in chunks], show_progress_bar=False, normalize_embeddings=True
+    ).astype("float32")
 
-    client = chromadb.PersistentClient(path=str(out_dir / "chroma"))
-    # Rebuilding from scratch each run keeps the index in sync with the
-    # current chunker output - a stale collection from a previous chunking
-    # scheme would silently mix old and new chunk_ids otherwise.
-    try:
-        client.delete_collection("policy_chunks")
-    except Exception:
-        pass
-    collection = client.create_collection("policy_chunks")
-    collection.add(
-        ids=[c.chunk_id for c in chunks],
-        embeddings=embeddings,
-        documents=[c.text for c in chunks],
-        metadatas=[{"page": c.page, "section": c.section} for c in chunks],
-    )
+    # Inner product over L2-normalized vectors == cosine similarity.
+    index = faiss.IndexFlatIP(embeddings.shape[1])
+    index.add(embeddings)
+    faiss.write_index(index, str(out_dir / "faiss.index"))
+
+    # FAISS only stores vectors, not metadata - this list's order IS the
+    # index: FAISS returns integer positions, and position i here must be
+    # exactly the chunk whose embedding was added at position i above.
+    with open(out_dir / "faiss_chunks.pkl", "wb") as f:
+        pickle.dump([c.model_dump() for c in chunks], f)
 
     bm25 = BM25Okapi([tokenize(c.text) for c in chunks])
     with open(out_dir / "bm25.pkl", "wb") as f:

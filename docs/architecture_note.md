@@ -53,7 +53,7 @@ explain than the equivalent LangGraph graph (full trade-off in
 
 ## Retrieval design
 
-Per checklist question: dense (Chroma, `bge-small-en-v1.5`) and sparse
+Per checklist question: dense (FAISS, `bge-small-en-v1.5`) and sparse
 (BM25 over the same chunks) run independently, are combined with
 Reciprocal Rank Fusion (rank-based, avoiding the need to reconcile
 incomparable score scales), and only the fused top candidates go to a
@@ -77,6 +77,16 @@ boundaries, because headings in the real policy PDF land mid-page.
 - **Retry capped at 1** to bound per-request latency and LLM spend.
 - **`litellm` installed with `--no-deps`** to avoid an unused ~16MB AWS
   Bedrock dependency chain (`docs/modules/llm.md`).
+- **FAISS instead of Chroma for the dense index** - both are explicitly
+  acceptable per the assignment's tech guidance. Chroma's install pulled in
+  grpc, a Kubernetes client, onnxruntime, and the full OpenTelemetry SDK -
+  none of which a single-process local index needs, but a real, concrete
+  cost in this project's very slow/unstable network environment (installing
+  chromadb's dependency tree was still not finished after resolving and
+  downloading well over a dozen packages). FAISS's wheel is self-contained
+  (only depends on numpy). Trade-off accepted: FAISS has no built-in
+  metadata store, so `build_index.py` keeps an index-aligned chunk-metadata
+  list alongside the vector index (`src/retrieval/dense.py`).
 
 ## Failure analysis (documented per the assignment's requirement)
 

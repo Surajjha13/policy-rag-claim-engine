@@ -15,7 +15,7 @@ file-by-file walkthrough of *why* each piece exists, and
 src/
   schemas/       API contract + inter-agent state (Pydantic models)
   ingestion/     PDF parsing, heading-aware clause chunking, index build
-  retrieval/     Dense (Chroma) + sparse (BM25) + RRF fusion + reranker
+  retrieval/     Dense (FAISS) + sparse (BM25) + RRF fusion + reranker
   llm/           Provider-agnostic LLM client + per-agent prompts
   agents/        Case Analysis, Policy Evidence, Coverage & Exclusion,
                  Decision, Validation
@@ -43,7 +43,7 @@ source .venv/Scripts/activate   # Windows Git Bash; use .venv\Scripts\activate.b
 pip install -r requirements.txt
 pip install --no-deps "litellm>=1.48,<2"   # see requirements.txt for why this is separate
 cp .env.example .env            # then set LLM_API_KEY to a real key
-python -m src.ingestion.build_index   # builds index_store/ (Chroma + BM25)
+python -m src.ingestion.build_index   # builds index_store/ (FAISS + BM25)
 ```
 
 Run the backend:
@@ -80,7 +80,7 @@ citation hit rate, recall@k where labeled, and the `NEEDS_REVIEW` count).
 | `LLM_PROVIDER` / `LLM_MODEL` / `LLM_API_KEY` | Passed to `litellm.completion` - swap providers with zero code changes |
 | `EMBEDDING_MODEL` | `sentence-transformers` model for dense retrieval (default: `BAAI/bge-small-en-v1.5`) |
 | `RERANK_MODEL` | Cross-encoder reranker (default: `BAAI/bge-reranker-base`) |
-| `INDEX_DIR` | Where the built Chroma collection + BM25 pickle live |
+| `INDEX_DIR` | Where the built FAISS index + BM25 pickle live |
 | `POLICY_PDF_PATH` | Path to the policy PDF to ingest |
 | `TOP_K_DENSE` / `TOP_K_SPARSE` / `TOP_K_RERANKED` | Retrieval fan-out at each stage |
 | `VALIDATION_FAIL_RETRY_LIMIT` | How many times the Decision Agent retries after a failed validation (default 1) |

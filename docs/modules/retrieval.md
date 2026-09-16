@@ -7,10 +7,17 @@ by how well they answer it.
 
 ## Why hybrid (dense + sparse), not just one
 
-- **`dense.py` - `DenseIndex`**: wraps a persisted Chroma collection and a
-  `sentence-transformers` bi-encoder (`bge-small-en-v1.5`). Good at semantic
-  matches - "does the patient's condition count as a pre-existing disease"
-  can match a chunk that never uses those exact words.
+- **`dense.py` - `DenseIndex`**: wraps a persisted FAISS `IndexFlatIP` (exact
+  inner-product search over L2-normalized vectors == cosine similarity) and
+  a `sentence-transformers` bi-encoder (`bge-small-en-v1.5`). Good at
+  semantic matches - "does the patient's condition count as a pre-existing
+  disease" can match a chunk that never uses those exact words. FAISS was
+  chosen over Chroma (both explicitly acceptable per the assignment) after
+  Chroma's install pulled in grpc, a Kubernetes client, onnxruntime, and the
+  full OpenTelemetry SDK - none needed for a single-process local index,
+  but a real cost in this project's very slow network environment; FAISS's
+  wheel is self-contained. The trade-off: FAISS stores only vectors, so
+  `build_index.py` keeps an index-aligned chunk-metadata list alongside it.
 - **`sparse.py` - `SparseIndex`**: wraps `rank_bm25.BM25Okapi` over the same
   chunks. Good at exact-term matches - a query containing "48 months" or
   "cosmetic" should surface the chunk containing that literal term even if

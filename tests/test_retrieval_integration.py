@@ -2,7 +2,7 @@
 
 Requires `python -m src.ingestion.build_index` to have been run first
 (these are integration tests, not unit tests - they exercise the real
-embedding model, Chroma collection, BM25 index, and cross-encoder
+embedding model, FAISS index, BM25 index, and cross-encoder
 reranker together against the actual policy text).
 """
 

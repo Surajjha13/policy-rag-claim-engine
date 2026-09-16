@@ -99,7 +99,7 @@ Both layers are described in detail in
 
 ## Retrieval design
 
-Dense (Chroma + `bge-small-en-v1.5`) and sparse (BM25) retrieval run in
+Dense (FAISS + `bge-small-en-v1.5`) and sparse (BM25) retrieval run in
 parallel per checklist question, are combined with Reciprocal Rank Fusion,
 and only the fused top candidates are passed to a cross-encoder reranker
 (`bge-reranker-base`) before being handed to the Coverage Agent. See
