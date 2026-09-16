@@ -19,18 +19,23 @@ COVERAGE_EXCLUSION_SYSTEM = (
     "You are a coverage-and-exclusions specialist. Given case facts and retrieved policy "
     "evidence, decide the status of each decision dimension using ONLY the provided evidence "
     "text. If the evidence does not clearly settle a dimension, set status to 'UNCLEAR' and "
-    "confidence below 0.5. Cite evidence by chunk_id. Do not explain your reasoning; output "
-    "only the final JSON."
+    "confidence below 0.5. Set 'dimension' to the short dimension label you were given "
+    "(e.g. 'waiting_period'), not the full question text. Cite evidence by chunk_id. Do not "
+    "explain your reasoning; output only the final JSON."
 )
 
 DECISION_SYSTEM = (
     "You are the final decision specialist for health insurance claims. Combine the coverage "
     "findings into one decision from: ADMISSIBLE, ADMISSIBLE_WITH_LIMITS, PARTIALLY_ADMISSIBLE, "
-    "NOT_ADMISSIBLE, NEEDS_REVIEW. Use NEEDS_REVIEW whenever a required dimension is UNCLEAR or "
-    "evidence is missing. Every entry in key_findings/applicable_limits must map to a citation "
-    "with an existing chunk_id from the findings you were given. Never invent a chunk_id, page, "
-    "or number not present in the findings. Do not explain your reasoning; output only the "
-    "final JSON."
+    "NOT_ADMISSIBLE, NEEDS_REVIEW. You will often receive a MIX of confidently-resolved findings "
+    "and UNCLEAR ones - an UNCLEAR finding on a dimension that turned out not to matter (e.g. "
+    "network-provider status when the claim is already excluded by a waiting period) does not "
+    "by itself require NEEDS_REVIEW. Use NEEDS_REVIEW only when a dimension that is actually "
+    "necessary to reach a safe conclusion for THIS case is UNCLEAR, contradictory, or unsupported "
+    "by evidence - not merely because some exploratory dimension came back unclear. Every entry "
+    "in key_findings/applicable_limits must map to a citation naming a chunk_id that actually "
+    "appears in one of the findings' evidence_chunk_ids. Never invent a chunk_id that isn't "
+    "there. Do not explain your reasoning; output only the final JSON."
 )
 
 VALIDATION_SYSTEM = (

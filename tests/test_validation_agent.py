@@ -54,6 +54,47 @@ def test_validation_fails_on_low_keyword_overlap():
     assert result.status == "FAIL"
 
 
+def test_keyword_overlap_survives_natural_paraphrase_and_plural_mismatch():
+    """Regression test: found via manual smoke-testing with a real LLM. The
+    original 0.3 threshold with no stemming rejected a well-grounded but
+    naturally-paraphrased claim before the entailment check ever ran."""
+    waiting_period_evidence = EvidenceBundle(
+        per_question={
+            "q1": [
+                EvidenceChunk(
+                    chunk_id="chunk-0046",
+                    text=(
+                        "2. 30 days Waiting Period. A waiting period of 30 days will apply to all "
+                        "claims unless You have been insured under this Policy continuously..."
+                    ),
+                    page=9,
+                    section="Exclusions",
+                )
+            ]
+        }
+    )
+    decision = DraftDecision(
+        decision="NOT_ADMISSIBLE",
+        confidence=0.9,
+        key_findings=[],
+        applicable_limits=[],
+        missing_evidence=[],
+        citations=[
+            Citation(
+                claim="The claim occurs within the 30-day initial waiting period, making it ineligible for coverage.",
+                source="policy.pdf",
+                page=9,
+                section="Exclusions",
+                chunk_id="chunk-0046",
+            )
+        ],
+    )
+    trace = []
+    with patch("src.agents.validation_agent.chat_json", return_value={"supported": True}):
+        result = run_validation(decision, waiting_period_evidence, trace)
+    assert result.status == "PASS"
+
+
 def test_validation_passes_when_claim_matches_chunk_and_model_agrees():
     decision = DraftDecision(
         decision="ADMISSIBLE",

@@ -39,7 +39,7 @@ def run_pipeline(case: ClaimCase) -> DecisionResponse:
     state.case_state = run_case_analysis(case, state.trace)
     state.evidence = run_policy_evidence(state.case_state, get_retriever(), state.trace)
     state.coverage = run_coverage_exclusion(state.case_state, state.evidence, state.trace)
-    state.draft_decision = run_decision(state.case_state, state.coverage, state.trace)
+    state.draft_decision = run_decision(state.case_state, state.coverage, state.evidence, state.trace)
     state.validation = run_validation(state.draft_decision, state.evidence, state.trace)
 
     while state.validation.status == "FAIL" and state.retry_count < settings.validation_fail_retry_limit:
@@ -47,6 +47,7 @@ def run_pipeline(case: ClaimCase) -> DecisionResponse:
         state.draft_decision = run_decision(
             state.case_state,
             state.coverage,
+            state.evidence,
             state.trace,
             feedback=state.validation.unsupported_claims,
         )
