@@ -1,9 +1,21 @@
-# Aptino Policy-Aware Multi-Agent RAG Claim Decision Engine
+# Policy-Aware Multi-Agent RAG Claim Decision Engine
 
-A five-agent claims-decision system over the supplied Universal Sompo CSC
-Individual Health Insurance policy (`UNIHLIP18004V011718`), using hybrid
-(dense + BM25) retrieval with reranking, structured inter-agent state, and
-citation validation with abstention.
+![Python](https://img.shields.io/badge/python-3.10%2B-blue)
+![FastAPI](https://img.shields.io/badge/api-FastAPI-009688)
+![Streamlit](https://img.shields.io/badge/UI-Streamlit-ff4b4b)
+![Tests](https://img.shields.io/badge/tests-pytest-0a9edc)
+![License](https://img.shields.io/badge/license-MIT-lightgrey)
+
+A five-agent claims-decision system over a real health insurance policy
+(Universal Sompo CSC Individual Health Insurance, `UNIHLIP18004V011718`),
+built to *show its work*: every decision is backed by hybrid (dense + BM25)
+retrieval with cross-encoder reranking, a structured inter-agent pipeline,
+and a citation-validation gate that abstains (`NEEDS_REVIEW`) rather than
+hallucinate a coverage answer the policy text doesn't actually support.
+
+**Pipeline:** Case Analysis → Policy Evidence (retrieval) → Coverage &
+Exclusion → Decision → Validation (with one bounded retry on failed
+grounding checks).
 
 See `docs/architecture.md` for the full design, `docs/modules/*.md` for a
 file-by-file walkthrough of *why* each piece exists, and
