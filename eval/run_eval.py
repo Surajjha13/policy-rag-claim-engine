@@ -23,7 +23,7 @@ from src.schemas.decision import DecisionResponse, ValidationResult  # noqa: E40
 # pause between cases keeps this script usable on a free tier without
 # needing every individual LLM call's retry/backoff (src/llm/client.py) to
 # absorb the whole batch's load.
-INTER_CASE_DELAY_SECONDS = 3
+INTER_CASE_DELAY_SECONDS = 20
 
 PUBLIC_CASES_PATH = Path(__file__).resolve().parents[1] / "data" / "candidate_cases" / "public_test_cases.json"
 CUSTOM_CASES_PATH = Path(__file__).parent / "custom_cases.json"

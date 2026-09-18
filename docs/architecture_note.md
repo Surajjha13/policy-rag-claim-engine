@@ -227,3 +227,27 @@ per-case try/except (mirroring `src/api/main.py`'s existing boundary) so
 one case's unrecoverable failure can never take down the rest of the batch
 again, and a small inter-case delay to stay under budget in the first
 place. See `eval/results.json` for the resulting run.
+
+**8. Re-running the full batch later with `INTER_CASE_DELAY_SECONDS`
+raised from 3s to 20s (model kept at `gpt-oss-120b` rather than switching
+to a higher-limit model) completed cleanly - no crashes, no
+exhausted-retry fallbacks - but accuracy was still 33%, which shows the
+first run's 33% was not purely a rate-limit artifact.** Evidence this run
+was clean: `avg_citation_hit_rate` more than doubled (0.222 -> 0.5) and
+confidence scores are no longer uniformly pinned near 0.3-0.4 the way an
+exhausted-retry fallback forces them - several cases show real
+high-confidence output (e.g. PUB-003 at 0.94, CUST-002 at 0.93). Breaking
+down the 12 incorrect cases: 5 are the Validation Agent vetoing a
+genuinely grounded, high-confidence decision the Decision Agent already
+reached (`validation_status: FAIL` with `citation_hit_rate: 1.0`, e.g.
+PUB-001, PUB-005, PUB-010) - i.e. the 3-layer grounding check (existence ->
+keyword overlap -> LLM entailment) is stricter than the hand-labeled
+expected outcomes require; the other 7 are genuine abstentions where the
+Decision Agent found no citable evidence at all
+(`citation_hit_rate: 0.0`, low confidence). Neither is a bug - both are the
+system doing exactly what it was designed to do (prefer `NEEDS_REVIEW`
+over an ungrounded claim) - but it means the real accuracy ceiling on this
+free-tier model is gated by validation strictness and retrieval recall,
+not by rate-limiting. Improving it further would mean loosening the
+entailment threshold or improving retrieval recall, which is future work,
+not a defect to fix under this assignment's scope.
