@@ -32,6 +32,22 @@ def _build_prompt_payload(case_state: CaseState, evidence: EvidenceBundle) -> di
     }
 
 
+# Shared by both a parse failure and a technically-valid response that
+# dropped the "findings" key entirely (observed with gpt-oss-20b elsewhere
+# in the pipeline - see DraftDecision/CaseState). Reusing the exact same
+# UNCLEAR/confidence-0.0 fallback for both keeps the Decision Agent's
+# nothing-usable abstention gate firing correctly either way - a bare `[]`
+# would instead read as "zero dimensions, nothing to abstain on" and let
+# a confused decision through.
+UNPARSEABLE_FINDING = {
+    "dimension": "coverage_scope",
+    "status": "UNCLEAR",
+    "explanation": "Model output could not be parsed.",
+    "evidence_chunk_ids": [],
+    "confidence": 0.0,
+}
+
+
 def run_coverage_exclusion(
     case_state: CaseState, evidence: EvidenceBundle, trace: list[TraceEvent]
 ) -> CoverageFindings:
@@ -40,17 +56,8 @@ def run_coverage_exclusion(
             payload = _build_prompt_payload(case_state, evidence)
             return chat_json(COVERAGE_EXCLUSION_SYSTEM, json.dumps(payload))
         except LLMOutputError:
-            return {
-                "findings": [
-                    {
-                        "dimension": "coverage_scope",
-                        "status": "UNCLEAR",
-                        "explanation": "Model output could not be parsed.",
-                        "evidence_chunk_ids": [],
-                        "confidence": 0.0,
-                    }
-                ]
-            }
+            return {"findings": [UNPARSEABLE_FINDING]}
 
     result = timed("CoverageExclusionAgent", "assess_dimensions", trace, _call)
-    return CoverageFindings(findings=[DimensionFinding(**f) for f in result["findings"]])
+    findings = result.get("findings") or [UNPARSEABLE_FINDING]
+    return CoverageFindings(findings=[DimensionFinding(**f) for f in findings])

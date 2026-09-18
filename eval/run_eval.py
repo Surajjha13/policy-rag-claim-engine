@@ -13,6 +13,15 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+# Windows' console defaults to the cp1252 codepage, which can't encode
+# characters some models produce in free-text fields (e.g. a Unicode
+# non-breaking hyphen in "in-network"). An uncaught UnicodeEncodeError from
+# a plain print() here would kill the whole batch and lose every case
+# already completed - reconfigure stdout to UTF-8 (replacing anything it
+# still can't encode) so one odd character can't do that.
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
 from src.orchestrator.pipeline import run_pipeline  # noqa: E402
 from src.schemas.case import ClaimCase  # noqa: E402
 from src.schemas.decision import DecisionResponse, ValidationResult  # noqa: E402

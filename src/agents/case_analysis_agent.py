@@ -74,10 +74,15 @@ def run_case_analysis(case: ClaimCase, trace: list[TraceEvent]) -> CaseState:
             }
 
     result = timed("CaseAnalysisAgent", "extract_dimensions_and_checklist", trace, _call)
-    checklist = [InvestigationItem(**item) for item in result["checklist"]]
+    # .get(..., []) rather than result["..."]: a model dropping a whole key
+    # (observed with gpt-oss-20b on other agents' outputs - see
+    # DraftDecision/DimensionFinding) should fall through to downstream
+    # agents finding nothing to work with and abstaining, not crash the
+    # pipeline with an uncaught KeyError.
+    checklist = [InvestigationItem(**item) for item in result.get("checklist", [])]
     return CaseState(
         case=case,
-        decision_dimensions=result["decision_dimensions"],
+        decision_dimensions=result.get("decision_dimensions", []),
         missing_fields=missing_fields,
         checklist=checklist,
     )

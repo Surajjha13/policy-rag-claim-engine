@@ -5,7 +5,7 @@ agent consumes and produces one of these typed models instead of raw text,
 so a later agent can never silently misread an earlier agent's output.
 """
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from src.schemas.case import ClaimCase
 from src.schemas.decision import Citation, DecisionStatus, TraceEvent, ValidationResult
@@ -47,7 +47,7 @@ class DimensionFinding(BaseModel):
     dimension: str
     status: str
     explanation: str
-    evidence_chunk_ids: list[str]
+    evidence_chunk_ids: list[str] = Field(default_factory=list)
     confidence: float
 
 
@@ -62,9 +62,14 @@ class DraftDecision(BaseModel):
 
     decision: DecisionStatus
     confidence: float
-    key_findings: list[str]
-    applicable_limits: list[str]
-    missing_evidence: list[str]
+    # A model omitting one of these list fields means "none", not a parse
+    # failure - gpt-oss-20b was observed dropping applicable_limits and
+    # missing_evidence entirely on a case with nothing to report for either,
+    # which crashed pydantic construction with an uncaught ValidationError
+    # (decision_agent.py's LLMOutputError handling doesn't catch that).
+    key_findings: list[str] = Field(default_factory=list)
+    applicable_limits: list[str] = Field(default_factory=list)
+    missing_evidence: list[str] = Field(default_factory=list)
     citations: list[Citation]
 
 
