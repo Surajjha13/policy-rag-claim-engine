@@ -20,7 +20,20 @@ from src.config import settings
 RETRYABLE_ERRORS = (RateLimitError, ServiceUnavailableError, APIConnectionError, Timeout)
 MAX_RETRIES = 5
 BACKOFF_SECONDS = 2.0
-RETRY_AFTER_PATTERN = re.compile(r"try again in (\d+(?:\.\d+)?)s", re.IGNORECASE)
+# Groq's tokens-per-minute limit reports waits like "try again in 5.07s";
+# its tokens-per-day limit reports waits like "try again in 21m7.488s" - the
+# original pattern only captured the trailing seconds and silently dropped
+# the minutes, e.g. parsing "21m7.488s" as 7.488s. Both minute and
+# second groups are optional so either format matches.
+RETRY_AFTER_PATTERN = re.compile(
+    r"try again in (?:(\d+)m)?(\d+(?:\.\d+)?)s", re.IGNORECASE
+)
+# A wait this long only happens on a daily (not per-minute) quota - retrying
+# in-process would block a single chat_json() call, and the pipeline makes
+# several per case, for tens of minutes with no realistic chance the quota
+# has meaningfully refilled by the next attempt. Fail fast instead and let
+# each agent's existing LLMOutputError fallback abstain immediately.
+MAX_RETRYABLE_WAIT_SECONDS = 60.0
 
 
 def _wait_seconds(error: Exception, attempt: int) -> float:
@@ -34,7 +47,8 @@ def _wait_seconds(error: Exception, attempt: int) -> float:
     hint is present (e.g. a connection drop, not a rate limit)."""
     match = RETRY_AFTER_PATTERN.search(str(error))
     if match:
-        return float(match.group(1)) + 0.5
+        minutes = float(match.group(1)) if match.group(1) else 0.0
+        return minutes * 60 + float(match.group(2)) + 0.5
     return BACKOFF_SECONDS * (2**attempt)
 
 
@@ -73,11 +87,12 @@ def chat_json(system: str, user: str) -> dict:
             )
         except RETRYABLE_ERRORS as e:
             last_error = e
-            if attempt < MAX_RETRIES - 1:
-                time.sleep(_wait_seconds(e, attempt))
+            wait = _wait_seconds(e, attempt)
+            if attempt < MAX_RETRIES - 1 and wait <= MAX_RETRYABLE_WAIT_SECONDS:
+                time.sleep(wait)
                 continue
             raise LLMOutputError(
-                f"LLM call failed after {MAX_RETRIES} attempts: {e}"
+                f"LLM call failed after {attempt + 1} attempt(s): {e}"
             ) from e
 
         content = response["choices"][0]["message"]["content"].strip()
