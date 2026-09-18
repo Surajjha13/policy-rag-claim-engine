@@ -6,6 +6,8 @@
 ![Tests](https://img.shields.io/badge/tests-pytest-0a9edc)
 ![License](https://img.shields.io/badge/license-MIT-lightgrey)
 
+**Live demo:** https://policy-rag-claim-engine.streamlit.app/
+
 A five-agent claims-decision system over a real health insurance policy
 (Universal Sompo CSC Individual Health Insurance, `UNIHLIP18004V011718`),
 built to *show its work*: every decision is backed by hybrid (dense + BM25)
@@ -208,4 +210,4 @@ runnable and curl-able locally or via the included `Dockerfile` (deployable
 to Render/Fly/any container host) - it just isn't deployed publicly
 alongside the frontend for this submission.
 
-- Live URL: _to be filled in after deployment._
+- Live URL: https://policy-rag-claim-engine.streamlit.app/

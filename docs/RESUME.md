@@ -88,5 +88,9 @@ as Secrets, deploy. Then fill in the `README.md` "Live URL" placeholder.
 - [x] Update `docs/architecture_note.md` failure case with final numbers (case 8).
 - [x] Push to GitHub (`main` branch, up to date with `origin/main`).
 - [x] Collapse frontend to in-process pipeline (no separate backend deploy).
-- [ ] Deploy `frontend/streamlit_app.py` to Streamlit Community Cloud,
-      fill in the "Live URL" placeholder in `README.md`.
+- [x] Deploy `frontend/streamlit_app.py` to Streamlit Community Cloud -
+      live at https://policy-rag-claim-engine.streamlit.app/ - and fill in
+      the "Live URL" in `README.md`. Hit and fixed a `ModuleNotFoundError:
+      No module named 'src'` on first deploy (Cloud's launcher doesn't put
+      the repo root on `sys.path` the way local `python -m streamlit run`
+      does) - see the `fix(frontend)` commit.
