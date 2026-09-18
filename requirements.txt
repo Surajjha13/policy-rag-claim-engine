@@ -20,10 +20,13 @@ requests>=2.32,<3
 pytest>=8.3,<9
 httpx>=0.28,<0.29
 
-# litellm is installed separately with --no-deps (see README "Local setup"):
-# its declared dependency list includes boto3 for an AWS Bedrock integration
-# this project never uses, and boto3/botocore add a slow, unnecessary ~16MB
-# download. Every runtime dependency litellm actually imports at import
-# time (openai, tiktoken, tokenizers, fastuuid, jinja2, jsonschema,
-# importlib-metadata, aiohttp) is pinned above instead, verified by
-# importing litellm after installing only those packages.
+# litellm pulls in boto3 (for an AWS Bedrock integration this project never
+# uses) as a declared dependency. Locally/in Docker, prefer installing it
+# separately with --no-deps (see README "Local setup") to skip that slow,
+# unnecessary download - every runtime dependency litellm actually imports
+# (openai, tiktoken, tokenizers, fastuuid, jinja2, jsonschema,
+# importlib-metadata, aiohttp) is pinned above regardless. It's listed
+# plainly here too because Streamlit Community Cloud only runs
+# `pip install -r requirements.txt` with no hook for a second --no-deps
+# command, so the deployed app needs it resolvable from this file alone.
+litellm>=1.48,<2

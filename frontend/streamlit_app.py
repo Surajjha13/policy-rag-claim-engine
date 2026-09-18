@@ -1,22 +1,62 @@
 """Reviewer-facing Streamlit UI.
 
-Talks to the backend only over HTTP (BACKEND_URL) - it renders exactly the
-DecisionResponse JSON contract and nothing else, so it can never show a
-reviewer something the API itself doesn't expose (in particular: no hidden
-chain-of-thought, only the trace's agent/action/elapsed_ms/detail fields).
+Runs the pipeline in-process (Streamlit Community Cloud only runs a single
+`streamlit run` process - it can't also host the separate FastAPI service
+as its own reachable backend, so this is the sole public deployment; see
+docs/modules/frontend.md). It still renders exactly the DecisionResponse
+contract and nothing else, so it can never show a reviewer something the
+pipeline itself doesn't expose (in particular: no hidden chain-of-thought,
+only the trace's agent/action/elapsed_ms/detail fields) - the boundary
+that used to be an HTTP call is now a single `.model_dump()` at the same
+point. `src/api/main.py` (FastAPI) is unchanged and still the way to run
+this pipeline as an independently curl-able service locally or in Docker.
 """
 
 import json
 import os
+from pathlib import Path
 
-import requests
 import streamlit as st
 
-BACKEND_URL = os.environ.get("BACKEND_URL", "http://localhost:8000")
+from src.config import settings
+from src.ingestion.build_index import build_index
+from src.orchestrator.pipeline import run_pipeline
+from src.schemas.case import ClaimCase
+from src.schemas.decision import DecisionResponse, ValidationResult
+
 PUBLIC_CASES_PATH = os.environ.get(
     "PUBLIC_CASES_PATH",
     "./data/candidate_cases/public_test_cases.json",
 )
+
+
+@st.cache_resource
+def ensure_index_built() -> None:
+    if not (Path(settings.index_dir) / "faiss.index").exists():
+        build_index()
+
+
+def analyze(case_payload: dict) -> dict:
+    try:
+        case = ClaimCase.model_validate(case_payload)
+    except Exception as e:
+        return {"_error": f"Invalid case JSON: {e}"}
+
+    try:
+        response = run_pipeline(case)
+    except Exception as e:
+        response = DecisionResponse(
+            case_id=case_payload.get("case_id", "UNKNOWN"),
+            decision="NEEDS_REVIEW",
+            confidence=0.0,
+            key_findings=[],
+            applicable_limits=[],
+            missing_evidence=[f"Internal pipeline error: {type(e).__name__}"],
+            citations=[],
+            validation=ValidationResult(status="FAIL", unsupported_claims=[]),
+            trace=[],
+        )
+    return response.model_dump()
 
 st.set_page_config(page_title="Aptino Claim Decision Engine", layout="wide")
 st.title("Policy-Aware Multi-Agent Claim Decision Engine")
@@ -53,11 +93,11 @@ with st.sidebar:
 
 if run and case_payload is not None:
     with st.spinner("Running multi-agent analysis..."):
-        resp = requests.post(f"{BACKEND_URL}/analyze", json=case_payload, timeout=120)
-    if resp.status_code != 200:
-        st.error(f"Request failed: {resp.status_code} — {resp.text}")
+        ensure_index_built()
+        result = analyze(case_payload)
+    if "_error" in result:
+        st.error(result["_error"])
     else:
-        result = resp.json()
         decision = result["decision"]
         st.subheader(f"{STATUS_COLOR.get(decision, '')} {decision}  (confidence: {result['confidence']:.2f})")
 

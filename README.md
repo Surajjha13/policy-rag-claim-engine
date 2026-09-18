@@ -53,21 +53,22 @@ Requires Python 3.10+.
 python -m venv .venv
 source .venv/Scripts/activate   # Windows Git Bash; use .venv\Scripts\activate.bat on cmd
 pip install -r requirements.txt
-pip install --no-deps "litellm>=1.48,<2"   # see requirements.txt for why this is separate
 cp .env.example .env            # then set LLM_API_KEY to a real key
 python -m src.ingestion.build_index   # builds index_store/ (FAISS + BM25)
 ```
 
-Run the backend:
+Run the frontend (runs the pipeline in-process; needs no separate backend):
+
+```bash
+streamlit run frontend/streamlit_app.py
+```
+
+The FastAPI backend (`src/api/main.py`) is independent and still fully
+functional - run it if you want to hit `/analyze` directly (e.g. via
+`curl`, see "API" below) rather than through the Streamlit UI:
 
 ```bash
 uvicorn src.api.main:app --reload
-```
-
-Run the frontend (in a second terminal):
-
-```bash
-BACKEND_URL=http://localhost:8000 streamlit run frontend/streamlit_app.py
 ```
 
 Run the tests:
@@ -192,9 +193,19 @@ See `docs/architecture.md` (system-level) and `docs/modules/*.md`
 
 ## Deployment
 
-- Backend: Docker image (see `Dockerfile`) deployable to Render/Fly/any
-  container host that can run a FastAPI app; the index is built at image
-  build time so cold start doesn't re-embed the policy.
-- Frontend: Streamlit Community Cloud, pointed at the deployed backend via
-  the `BACKEND_URL` environment variable.
-- Live URLs: _to be filled in after deployment._
+Deployed as a single Streamlit Community Cloud app
+(`frontend/streamlit_app.py`), which runs the 5-agent pipeline directly
+in-process rather than over HTTP - Streamlit Community Cloud only runs one
+`streamlit run` process per app and can't also host the separate FastAPI
+service as its own publicly reachable backend. The index is built once on
+first request and cached for the life of the container
+(`ensure_index_built()`, `@st.cache_resource`).
+
+**Known gap:** this means there is no separately deployed, live backend
+URL - only the one Streamlit app URL. The FastAPI backend
+(`src/api/main.py`) still exists, is fully tested, and is independently
+runnable and curl-able locally or via the included `Dockerfile` (deployable
+to Render/Fly/any container host) - it just isn't deployed publicly
+alongside the frontend for this submission.
+
+- Live URL: _to be filled in after deployment._

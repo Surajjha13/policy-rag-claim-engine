@@ -1,10 +1,26 @@
 # Frontend module (`frontend/streamlit_app.py`)
 
-A thin rendering layer over `POST /analyze` - it has no logic of its own
-beyond input selection and display. This is deliberate: every fact a
-reviewer sees comes from the `DecisionResponse` JSON contract, so the UI can
-never show something the API itself doesn't expose (in particular, it
-cannot leak chain-of-thought, because the API never sends any).
+A thin rendering layer over the pipeline's `DecisionResponse` - it has no
+logic of its own beyond input selection and display. This is deliberate:
+every fact a reviewer sees comes from that one contract, so the UI can
+never show something the pipeline itself doesn't expose (in particular, it
+cannot leak chain-of-thought, because the pipeline never produces any).
+
+**In-process, not over HTTP.** Originally this called `POST /analyze` on
+the separate FastAPI backend. It now calls `run_pipeline()` directly and
+renders `.model_dump()` of the result - the contract boundary is identical
+(same Pydantic model, same fields, same "can't show more than the
+contract exposes" guarantee), only the transport changed. This was forced
+by deployment: Streamlit Community Cloud runs exactly one
+`streamlit run` process per app and cannot also host the FastAPI service
+as its own reachable backend, so this frontend became the sole public
+deployment (see the README's "Deployment" section for the resulting known
+gap: no separate live backend URL). `src/api/main.py` is unchanged and
+still the way to run this pipeline as an independently curl-able service
+locally or via Docker - it just isn't what the deployed Streamlit app
+talks to anymore. `ensure_index_built()` (`@st.cache_resource`) replaces
+the Dockerfile's build-at-image-time step, since Streamlit Cloud has no
+custom build-command hook to build the index ahead of the first request.
 
 ## Layout decisions
 

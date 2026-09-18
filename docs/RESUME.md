@@ -31,63 +31,62 @@ Where this stands and exactly what's left, for picking this back up later.
   validation keyword-overlap threshold rejecting valid paraphrases, and
   LLM rate-limit handling (see next section).
 
-## What's NOT done / blocked
+## Update (2026-09-18): eval done, repo pushed - only deployment remains
 
-**1. `eval/run_eval.py` has not produced a clean full 18-case
-`eval/results.json` yet.** Root cause: `LLM_MODEL=groq/openai/gpt-oss-120b`
-(set in the gitignored `.env`, matching the value the user supplied) has an
-**8000 tokens/minute free-tier limit on Groq**, and this pipeline's
-per-case LLM usage (case analysis + coverage judgment over multiple
-evidence chunks + decision + one validation entailment call per citation)
-routinely exceeds that within 1-2 cases. Retry/backoff
-(`src/llm/client.py`) prevents crashes and parses Groq's actual
-"try again in Xs" hint rather than guessing, but during this session the
-account's rolling TPM budget was already heavily consumed by earlier
-testing, so most retries were still exhausting before the window cleared -
-producing artificial `NEEDS_REVIEW` fallbacks that don't reflect the
-system's real decision quality (confirmed by the clean PUB-002 smoke test
-above, run when the budget wasn't already exhausted).
+Since the notes below were written: the branch was merged to `main` and
+pushed to `github.com/Surajjha13/policy-rag-claim-engine` (so item 3's
+"no remote" is stale - a remote exists and is up to date). A clean full
+18-case eval run was also completed - see failure case 8 in
+`docs/architecture_note.md` for the full breakdown. Summary:
+`LLM_MODEL` was kept at `groq/openai/gpt-oss-120b` per the user's
+explicit choice (not switched to `llama-3.3-70b-versatile`);
+`eval/run_eval.py`'s `INTER_CASE_DELAY_SECONDS` was raised from 3 to 20 to
+give the free-tier TPM budget more headroom, and the batch (run via
+`.venv/Scripts/python.exe eval/run_eval.py`, not the system Python - see
+below) completed in ~80 minutes with no crashes and no exhausted-retry
+fallbacks. Resulting `eval/results.json`: 33% accuracy,
+`avg_citation_hit_rate` 0.5 (up from 0.222 in the earlier degraded run).
+This 33% is now a **real** number, not a rate-limit artifact: 5 of the 12
+misses are the Validation Agent correctly vetoing an otherwise
+well-grounded decision (stricter than the hand-labeled expected
+outcomes), and 7 are genuine no-evidence abstentions. Improving this
+further (loosening the entailment threshold, improving retrieval recall)
+is future work outside this assignment's scope, not a bug.
 
-Presented three options to the user; **awaiting their choice**:
-- Switch `LLM_MODEL` to `groq/llama-3.3-70b-versatile` for the eval run
-  (much higher free-tier TPM, likely to just work) - **recommended**.
-- Keep `gpt-oss-120b` but pace every individual LLM call much further
-  apart (not just between cases) - eval run would take 45-90+ minutes.
-- User supplies a different/upgraded API key.
+**Environment gotcha hit while resuming:** running `python eval/run_eval.py`
+directly used the system Python (`pydantic_settings` missing ->
+`ModuleNotFoundError`), not the project's `.venv`. Always invoke via
+`./.venv/Scripts/python.exe eval/run_eval.py` (or activate the venv
+first) on this machine.
 
-**Next step once decided:** update `.env`'s `LLM_MODEL` if switching, then
-run `python eval/run_eval.py` from the project root (needs the index built
-and enough free system memory - see note below). It writes
-`eval/results.json` and prints a summary.
+**Deployment decision (2026-09-18): single Streamlit app, not a separate
+Render backend.** Streamlit Community Cloud only runs one `streamlit run`
+process per app and can't also host FastAPI as its own reachable service,
+so user chose to collapse: `frontend/streamlit_app.py` now calls
+`run_pipeline()` directly in-process instead of `POST /analyze` over HTTP
+(`ensure_index_built()` builds the index on first request, cached via
+`@st.cache_resource`). `litellm` moved from a separate `--no-deps` install
+into `requirements.txt` proper, since Streamlit Cloud only runs
+`pip install -r requirements.txt` with no hook for a second install
+command. Verified locally: ran the app standalone (no FastAPI process),
+drove PUB-002 through the browser, full render (decision, citations,
+trace) worked purely in-process. `src/api/main.py` (FastAPI) is unchanged
+and still locally runnable/curl-able/Docker-deployable - it's just not
+what the deployed Streamlit app talks to. **Known, accepted gap:** only
+one live URL will exist (the Streamlit app), not a separate backend URL -
+see README "Deployment" section.
 
-**2. This machine ran low on memory partway through today's session**
-(unrelated to this project - other running applications), which killed
-several background eval attempts mid-run via the harness's own protective
-monitor (not a bug in this code - foreground execution of the same script,
-tested directly, completed without issue). If resuming on a
-memory-constrained machine again, run `eval/run_eval.py` in the foreground
-rather than as a background task, or close other memory-heavy applications
-first.
-
-**3. Not deployed anywhere yet.** No GitHub remote is configured on this
-repo (`git remote -v` is empty - it's local-only right now), and nothing
-has been deployed to Render/Streamlit Cloud/etc. The assignment requires a
-public GitHub repo, a live frontend URL, and a live backend URL. This needs
-the user's own GitHub/hosting accounts - I can walk through the exact
-`git push`/deploy steps once the user has (or wants me to help set up)
-those accounts.
-
-**4. `docs/architecture_note.md`'s failure-case write-up (case 7) should be
-updated** once the eval actually completes cleanly, to reference the final
-real `eval/results.json` numbers instead of the two provisional
-single-case results gathered during debugging.
+**Only remaining item: the actual deploy.** Sign up at share.streamlit.io
+(GitHub OAuth), New app -> this repo -> `main` -> `frontend/streamlit_app.py`,
+set `LLM_PROVIDER`/`LLM_API_KEY`/`LLM_MODEL=groq/openai/gpt-oss-120b` (etc.)
+as Secrets, deploy. Then fill in the `README.md` "Live URL" placeholder.
 
 ## Quick resume checklist
 
-- [ ] Decide the model/rate-limit question above (or just try
-      `llama-3.3-70b-versatile` - it's a safe default recommendation).
-- [ ] `python eval/run_eval.py` (foreground, from project root).
-- [ ] Update `docs/architecture_note.md` failure case 7 with final numbers.
-- [ ] Create a GitHub repo, push this branch, open/merge a PR to `master`.
-- [ ] Deploy backend (Render, Docker) and frontend (Streamlit Community
-      Cloud), fill in the "Live URLs" placeholder in `README.md`.
+- [x] Decide the model/rate-limit question (user chose: keep `gpt-oss-120b`).
+- [x] `python eval/run_eval.py` (via `.venv/Scripts/python.exe`, from project root).
+- [x] Update `docs/architecture_note.md` failure case with final numbers (case 8).
+- [x] Push to GitHub (`main` branch, up to date with `origin/main`).
+- [x] Collapse frontend to in-process pipeline (no separate backend deploy).
+- [ ] Deploy `frontend/streamlit_app.py` to Streamlit Community Cloud,
+      fill in the "Live URL" placeholder in `README.md`.
