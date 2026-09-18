@@ -14,9 +14,17 @@ this pipeline as an independently curl-able service locally or in Docker.
 
 import json
 import os
+import sys
 from pathlib import Path
 
 import streamlit as st
+
+# Streamlit Community Cloud's launcher only puts this file's own directory
+# (frontend/) on sys.path, not the repo root - unlike `python -m streamlit
+# run ...` invoked from the repo root, which happens to put the cwd there.
+# The `src.*` imports below need the repo root explicitly, regardless of
+# how the process was launched.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src.config import settings
 from src.ingestion.build_index import build_index
